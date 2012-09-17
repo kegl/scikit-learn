@@ -72,7 +72,8 @@ def brier_score(y_true, y_prob):
 
     Returns
     -------
-    float : Brier score
+    score : float
+        Brier score
 
     References
     ----------
