@@ -19,9 +19,12 @@ class IsotonicCalibrator(BaseEstimator):
 
     Notes
     -----
-    Reference:
+    References:
     Obtaining calibrated probability estimates from decision trees
     and naive Bayesian classifiers, B. Zadrozny & C. Elkan, ICML 2001
+
+    Transforming Classiﬁer Scores into Accurate Multiclass
+    Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
     """
     def __init__(self, estimator):
         self.estimator = estimator
