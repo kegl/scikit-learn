@@ -23,8 +23,10 @@ def test_isotonic_calibration():
     prob_pos_lr = clf.predict_proba(X_test)[:, 1]
 
     # Logistic Regression with isotonic calibration
-    ir_clf = IsotonicCalibrator(LogisticRegression(C=1., intercept_scaling=100.))
+    lr = LogisticRegression(C=1., intercept_scaling=100.)
+    ir_clf = IsotonicCalibrator(lr)
     ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
     prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
-    assert_true(brier_score(y_test, prob_pos_lr) > brier_score(y_test, prob_pos_lr_ir))
+    assert_true(brier_score(y_test, prob_pos_lr) >
+                brier_score(y_test, prob_pos_lr_ir))
