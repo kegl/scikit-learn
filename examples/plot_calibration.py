@@ -24,20 +24,20 @@ from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import brier_score, calibration_plot
-from sklearn.linear_model import IsotonicRegression
 from sklearn.svm import SVC
 from sklearn.calibration import IsotonicCalibrator
+from sklearn.cross_validation import train_test_split
 
-n_samples = 3000
+n_samples = 4000
 n_bins = 8  # for calibration_plot
-X, y = make_classification(n_samples=2 * n_samples, n_features=6,
+X, y = make_classification(n_samples=n_samples, n_features=6,
                            random_state=42)
 
 # split train, test and OOB for calibration
-X_train, y_train = X[:n_samples], y[:n_samples]
-X_train_oob, y_train_oob = X[:n_samples / 2], y[:n_samples / 2]
-X_oob, y_oob = X[n_samples / 2:], y[n_samples / 2:]
-X_test, y_test = X[n_samples:], y[n_samples:]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
+                                                    random_state=42)
+X_train_oob, X_oob, y_train_oob, y_oob = train_test_split(X_train, y_train,
+                                                test_size=0.5, random_state=42)
 
 # Logistic Regression
 clf = LogisticRegression(C=1., intercept_scaling=100.)
