@@ -50,12 +50,12 @@ class IsotonicCalibrator(BaseEstimator):
         """
         self.estimator.fit(X, y)
         df = self.estimator.decision_function(X_oob)
-        if df.shape[1] > 1:
+        if df.ndim > 1 and df.shape[1] > 1:
             raise ValueError('IsotonicCalibrator only support binary classification.')
         df = df.ravel()
         order = np.argsort(df)
         df = df[order]
-        self._ir = IsotonicRegression(x_min=0., x_max=1.)
+        self._ir = IsotonicRegression(y_min=0., y_max=1.)
         self._ir.fit(df, y_oob[order])
         return self
 
