@@ -64,8 +64,9 @@ class IsotonicCalibrator(BaseEstimator):
         return self
 
     def predict_proba(self, X):
-        """
-        This function return posterior probabilities of classification
+        """Posterior probabilities of classification
+
+        This function returns posterior probabilities of classification
         according to each class on an array of test vectors X.
 
         Parameters

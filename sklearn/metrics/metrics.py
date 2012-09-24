@@ -58,7 +58,7 @@ def _check_and_normalize(y_true, y_prob):
 
 
 def brier_score(y_true, y_prob):
-    """Compute the Brier score.
+    """Compute the Brier score
 
     The smaller the Brier score, the better.
 
@@ -84,8 +84,7 @@ def brier_score(y_true, y_prob):
 
 
 def calibration_plot(y_true, y_prob, bins=5, verbose=0):
-    """Compute true and predicted probabilities to be used
-       for a calibration plot.
+    """Compute true and predicted probabilities for a calibration plot
 
     Parameters
     ----------
