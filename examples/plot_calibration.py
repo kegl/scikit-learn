@@ -54,6 +54,8 @@ ir_clf = IsotonicCalibrator(LogisticRegression(C=1., intercept_scaling=100.))
 ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
 prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
+# XXX : add Naive Bayes + RandomForests
+
 # SGD Huber
 clf = SGDClassifier(loss="modified_huber", seed=0, penalty='l2', n_iter=200)
 clf.fit(X_train, y_train)
