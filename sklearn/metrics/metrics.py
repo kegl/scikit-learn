@@ -62,6 +62,22 @@ def brier_score(y_true, y_prob):
 
     The smaller the Brier score, the better.
 
+    Across all items in a set N predictions, the Brier score measures the
+    mean squared difference between (1) the predicted probability assigned
+    to the possible outcomes for item i, and (2) the actual outcome.
+    Therefore, the lower the Brier score is for a set of predictions, the
+    better the predictions are calibrated. Note that the Brier score always
+    takes on a value between zero and one, since this is the largest
+    possible difference between a predicted probability (which must be
+    between zero and one) and the actual outcome (which can take on values
+    of only 0 and 1).
+
+    The Brier score is appropriate for binary and categorical outcomes that
+    can be structured as true or false, but is inappropriate for ordinal
+    variables which can take on three or more values (this is because the
+    Brier score assumes that all possible outcomes are equivalently
+    "distant" from one another).
+
     Parameters
     ----------
     y_true : array, shape = [n_samples]

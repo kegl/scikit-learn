@@ -9,7 +9,7 @@ gives you some kind of confidence on the prediction. This example
 demonstrates the use of various estimators that can predict probabilities
 as well as some estimators that can be used to calibrate the
 output score into a probability. The accuracy is estimated
-with Brier's score.
+with Brier's score (see http://en.wikipedia.org/wiki/Brier_score).
 
 """
 print __doc__
