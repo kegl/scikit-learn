@@ -6,7 +6,7 @@
 import numpy as np
 
 from .base import BaseEstimator
-from .linear_model import IsotonicRegression
+from .isotonic import IsotonicRegression
 
 
 class IsotonicCalibrator(BaseEstimator):
@@ -23,7 +23,7 @@ class IsotonicCalibrator(BaseEstimator):
     Obtaining calibrated probability estimates from decision trees
     and naive Bayesian classifiers, B. Zadrozny & C. Elkan, ICML 2001
 
-    Transforming Classiﬁer Scores into Accurate Multiclass
+    Transforming Classifier Scores into Accurate Multiclass
     Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
     """
     def __init__(self, estimator):
@@ -52,7 +52,10 @@ class IsotonicCalibrator(BaseEstimator):
             returns an instance of self.
         """
         self.estimator.fit(X, y)
-        df = self.estimator.decision_function(X_oob)
+        if hasattr(self.estimator, "decision_function"):
+            df = self.estimator.decision_function(X_oob)
+        else:
+            df = self.estimator.predict_proba(X_oob)[:, 1:]
         if df.ndim > 1 and df.shape[1] > 1:
             raise ValueError('IsotonicCalibrator only support binary '
                              'classification.')
@@ -78,7 +81,12 @@ class IsotonicCalibrator(BaseEstimator):
         C : array, shape = [n_samples, 2]
             The predicted probas.
         """
-        proba = self._ir.predict(self.estimator.decision_function(X).ravel())
+        if hasattr(self.estimator, "decision_function"):
+            df = self.estimator.decision_function(X)
+        else:
+            df = self.estimator.predict_proba(X)[:, 1:]
+        df = df.ravel()
+        proba = self._ir.predict(df)
         proba = np.c_[1. - proba, proba]
         return proba
 

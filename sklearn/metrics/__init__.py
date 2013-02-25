@@ -3,6 +3,7 @@ The :mod:`sklearn.metrics` module includes score functions, performance metrics
 and pairwise metrics and distance computations.
 """
 
+<<<<<<< HEAD
 from .ranking import auc
 from .ranking import average_precision_score
 from .ranking import label_ranking_average_precision_score
@@ -11,6 +12,33 @@ from .ranking import precision_recall_curve
 from .ranking import roc_auc_score
 from .ranking import roc_curve
 from .ranking import hinge_loss
+=======
+from .metrics import (accuracy_score,
+                      average_precision_score,
+                      auc,
+                      roc_auc_score,
+                      classification_report,
+                      confusion_matrix,
+                      explained_variance_score,
+                      f1_score,
+                      fbeta_score,
+                      hamming_loss,
+                      hinge_loss,
+                      jaccard_similarity_score,
+                      log_loss,
+                      matthews_corrcoef,
+                      mean_squared_error,
+                      mean_absolute_error,
+                      precision_recall_curve,
+                      precision_recall_fscore_support,
+                      precision_score,
+                      recall_score,
+                      r2_score,
+                      roc_curve,
+                      zero_one_loss,
+                      brier_score,
+                      calibration_plot)
+>>>>>>> ENH : fix imports + work if decision_function is not available
 
 from .classification import accuracy_score
 from .classification import classification_report
@@ -101,5 +129,5 @@ __all__ = [
     'v_measure_score',
     'zero_one_loss',
     'brier_score',
+    'calibration_plot',
 ]
-

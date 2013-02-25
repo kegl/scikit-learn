@@ -2,6 +2,7 @@ from nose.tools import assert_true
 
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.metrics import brier_score
 from sklearn.calibration import IsotonicCalibrator
 
@@ -22,9 +23,9 @@ def test_isotonic_calibration():
     clf.fit(X_train, y_train)
     prob_pos_lr = clf.predict_proba(X_test)[:, 1]
 
-    # Logistic Regression with isotonic calibration
-    lr = LogisticRegression(C=1., intercept_scaling=100.)
-    ir_clf = IsotonicCalibrator(lr)
+    # Naive Bayes with isotonic calibration
+    # clf = BernoulliNB()  # XXX : make it work in NB
+    ir_clf = IsotonicCalibrator(clf)
     ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
     prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
