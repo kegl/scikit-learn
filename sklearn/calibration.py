@@ -7,6 +7,7 @@ import numpy as np
 
 from .base import BaseEstimator
 from .isotonic import IsotonicRegression
+from .naive_bayes import GaussianNB
 
 
 class IsotonicCalibrator(BaseEstimator):
@@ -14,8 +15,9 @@ class IsotonicCalibrator(BaseEstimator):
 
     Parameters
     ----------
-    estimator : BaseEstimator
-        The estimator whose output decision function needs to be calibrated.
+    estimator : instance BaseEstimator
+        The classifier whose output decision function needs to be calibrated
+        to offer more accurate predict_proba outputs.
 
     Notes
     -----
@@ -26,7 +28,7 @@ class IsotonicCalibrator(BaseEstimator):
     Transforming Classifier Scores into Accurate Multiclass
     Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
     """
-    def __init__(self, estimator):
+    def __init__(self, estimator=GaussianNB()):
         self.estimator = estimator
 
     def fit(self, X, y, X_oob, y_oob):
@@ -60,10 +62,8 @@ class IsotonicCalibrator(BaseEstimator):
             raise ValueError('IsotonicCalibrator only support binary '
                              'classification.')
         df = df.ravel()
-        order = np.argsort(df)
-        df = df[order]
         self._ir = IsotonicRegression(y_min=0., y_max=1.)
-        self._ir.fit(df, y_oob[order])
+        self._ir.fit(df, y_oob)
         return self
 
     def predict_proba(self, X):

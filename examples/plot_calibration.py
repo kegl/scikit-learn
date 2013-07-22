@@ -23,6 +23,8 @@ import numpy as np
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import SGDClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import brier_score, calibration_plot
 from sklearn.svm import SVC
 from sklearn.calibration import IsotonicCalibrator
@@ -54,25 +56,39 @@ ir_clf = IsotonicCalibrator(LogisticRegression(C=1., intercept_scaling=100.))
 ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
 prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
-# XXX : add Naive Bayes + RandomForests
-
 # SGD Huber
 clf = SGDClassifier(loss="modified_huber", seed=0, penalty='l2', n_iter=200)
 clf.fit(X_train, y_train)
 prob_pos_sgd_huber = clf.predict_proba(X_test)[:, 1]
+
+# Gaussian Naive-Bayes
+ir_clf = IsotonicCalibrator(GaussianNB())
+ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+prob_pos_nb_ir = ir_clf.predict_proba(X_test)[:, 1]
+
+# Random Forests
+ir_clf = IsotonicCalibrator(RandomForestClassifier())
+ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+prob_pos_rf_ir = ir_clf.predict_proba(X_test)[:, 1]
 
 print "Brier scores: (the smaller the better)"
 print "LogisticRegression: %1.3f" % brier_score(y_test, prob_pos_lr)
 pt_lr, pp_lr = calibration_plot(y_test, prob_pos_lr, bins=n_bins)
 
 print "SVC + Platt: %1.3f" % brier_score(y_test, prob_pos_svc)
-pt_lr, pp_lr = calibration_plot(y_test, prob_pos_svc, bins=n_bins)
+pt_svc, pp_svc = calibration_plot(y_test, prob_pos_svc, bins=n_bins)
 
 print "LogisticRegression (IR): %1.3f" % brier_score(y_test, prob_pos_lr_ir)
 pt_lr_ir, pp_lr_ir = calibration_plot(y_test, prob_pos_lr_ir, bins=n_bins)
 
 print "SGD (modified_huber): %1.3f" % brier_score(y_test, prob_pos_sgd_huber)
 pt_sgd, pp_sgd = calibration_plot(y_test, prob_pos_sgd_huber, bins=n_bins)
+
+print "Gaussian Naive Bayes (IR): %1.3f" % brier_score(y_test, prob_pos_nb_ir)
+pt_nb_ir, pp_nb_ir = calibration_plot(y_test, prob_pos_nb_ir, bins=n_bins)
+
+print "Random Forests (IR): %1.3f" % brier_score(y_test, prob_pos_rf_ir)
+pt_rf_ir, pp_rf_ir = calibration_plot(y_test, prob_pos_rf_ir, bins=n_bins)
 
 ###############################################################################
 # Plot calibration plots
@@ -95,9 +111,11 @@ pl.xlabel("Predicted probability")
 pl.ylabel("True probability")
 pl.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
 pl.plot(pp_lr, pt_lr, "rs-", label="LogisticRegression")
-pl.plot(pp_lr, pt_lr, "gs--", label="SVC + Platt")
+pl.plot(pp_svc, pt_svc, "gs-", label="SVC + Platt")
 pl.plot(pp_lr_ir, pt_lr_ir, "bs-", label="LogisticRegression (IR)")
 pl.plot(pp_sgd, pt_sgd, "cs-", label="SGDClassifier (huber)")
+pl.plot(pp_nb_ir, pt_nb_ir, "ms-", label="GaussianNB (IR)")
+pl.plot(pp_rf_ir, pt_rf_ir, "ks-", label="Random Forests (IR)")
 pl.legend(loc="lower right")
 pl.ylim([-0.05, 1.05])
 pl.show()
