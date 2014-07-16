@@ -1,6 +1,7 @@
 """Calibration estimators."""
 
 # Author: Alexandre Gramfort <alexandre.gramfort@telecom-paristech.fr>
+#         Balazs Kegl <balazs.kegl@gmail.com>
 #
 # License: BSD 3 clause
 
@@ -9,9 +10,10 @@ import numpy as np
 
 from scipy.optimize import fmin_bfgs
 
-from .base import BaseEstimator, RegressorMixin
+from .base import BaseEstimator, RegressorMixin, clone
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
+from .cross_validation import check_cv
 
 
 class IsotonicCalibrator(BaseEstimator):
@@ -32,10 +34,11 @@ class IsotonicCalibrator(BaseEstimator):
     Transforming Classifier Scores into Accurate Multiclass
     Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
     """
-    def __init__(self, estimator=GaussianNB()):
+    def __init__(self, estimator=GaussianNB(), cv=2):
         self.estimator = estimator
+        self.cv = cv
 
-    def fit(self, X, y, X_oob, y_oob):
+    def fit(self, X, y):
         """Fit the calibrated model
 
         Parameters
@@ -46,28 +49,29 @@ class IsotonicCalibrator(BaseEstimator):
         y : array-like, shape (n_samples,)
             Target values.
 
-        X_oob : array-like, shape (n_samples, n_features)
-            Out of bag training data used for calibration.
-
-        y_oob : array-like, shape (n_samples,)
-            Out of bag targets used for calibration.
+        cv : a cross-validation object
 
         Returns
         -------
         self : object
             returns an instance of self.
         """
-        self.estimator.fit(X, y)
-        if hasattr(self.estimator, "decision_function"):
-            df = self.estimator.decision_function(X_oob)
-        else:
-            df = self.estimator.predict_proba(X_oob)[:, 1:]
-        if df.ndim > 1 and df.shape[1] > 1:
-            raise ValueError('IsotonicCalibrator only support binary '
-                             'classification.')
-        df = df.ravel()
-        self._ir = IsotonicRegression(y_min=0., y_max=1., out_of_bounds='clip')
-        self._ir.fit(df, y_oob)
+        cv = check_cv(self.cv, X, y)
+        self.models_ = []
+        for train, test in cv:
+            this_estimator = clone(self.estimator)
+            this_estimator.fit(X[train], y[train])
+            if hasattr(this_estimator, "decision_function"):
+                df = this_estimator.decision_function(X[test])
+            else:
+                df = this_estimator.predict_proba(X[test])[:, 1:]
+            if df.ndim > 1 and df.shape[1] > 1:
+                raise ValueError('IsotonicCalibrator only support binary '
+                                 'classification.')
+            df = df.ravel()
+            this_ir = IsotonicRegression(y_min=0., y_max=1.)
+            this_ir.fit(df, y[test])
+            self.models_.append((this_estimator, this_ir))
         return self
 
     def predict_proba(self, X):
@@ -86,12 +90,17 @@ class IsotonicCalibrator(BaseEstimator):
         C : array, shape (n_samples, 2)
             The predicted probas.
         """
-        if hasattr(self.estimator, "decision_function"):
-            df = self.estimator.decision_function(X)
-        else:
-            df = self.estimator.predict_proba(X)[:, 1:]
-        df = df.ravel()
-        proba = self._ir.predict(df)
+        log_proba = np.zeros(X.shape[0])
+        for this_estimator, this_ir in self.models_:
+            if hasattr(this_estimator, "decision_function"):
+                df = this_estimator.decision_function(X)
+            else:
+                df = this_estimator.predict_proba(X)[:, 1:]
+            df = df.ravel()
+            log_proba += np.log(this_ir.predict(df))
+
+        log_proba /= len(self.models_)
+        proba = np.exp(log_proba)
         proba = np.c_[1. - proba, proba]
         return proba
 
