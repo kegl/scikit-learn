@@ -1,10 +1,13 @@
+import numpy as np
+
+from sklearn.utils.testing import assert_array_almost_equal
 from nose.tools import assert_true
 
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import BernoulliNB
 from sklearn.metrics import brier_score
 from sklearn.calibration import IsotonicCalibrator
+from sklearn.calibration import sigmoid_calibration
 
 
 def test_isotonic_calibration():
@@ -31,3 +34,12 @@ def test_isotonic_calibration():
 
     assert_true(brier_score(y_test, prob_pos_lr) >
                 brier_score(y_test, prob_pos_lr_ir))
+
+
+def test_sigmoid_calibration():
+    exF = np.array([5, -4, 1.0])
+    exY = np.array([1, -1, -1])
+    # computed from my python port of the C++ code in LibSVM
+    AB_lin_libsvm = np.array([-0.20261354391187855, 0.65236314980010512])
+    lin_prob = 1. / (1. + np.exp(AB_lin_libsvm[0] * exF + AB_lin_libsvm[1]))
+    assert_array_almost_equal(lin_prob, sigmoid_calibration(exF, exY), 6)
