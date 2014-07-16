@@ -9,7 +9,7 @@ import numpy as np
 
 from scipy.optimize import fmin_bfgs
 
-from .base import BaseEstimator
+from .base import BaseEstimator, RegressorMixin
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
 
@@ -124,8 +124,10 @@ def sigmoid_calibration(df, y):
 
     Returns
     -------
-    P : ndarray, shape (n_samples,)
-        The probas of being 1.
+    a : float
+        The slope.
+    b : float
+        The intercept.
 
     Notes
     -----
@@ -160,5 +162,50 @@ def sigmoid_calibration(df, y):
 
     AB0 = np.array([0., log((prior0 + 1.) / (prior1 + 1.))])
     AB_ = fmin_bfgs(objective, AB0, fprime=grad, disp=False)
-    prob = 1. / (1. + np.exp(AB_[0] * F + AB_[1]))
-    return prob
+    return AB_
+
+
+class SigmoidCalibration(BaseEstimator, RegressorMixin):
+    """Sigmoid regression model.
+
+    Attributes
+    ----------
+    `a_` : float
+        The slope.
+
+    `b_` : float
+        The intercept.
+    """
+    def fit(self, X, y):
+        """Fit the model using X, y as training data.
+
+        Parameters
+        ----------
+        X : array-like, shape=(n_samples,)
+            Training data.
+
+        y : array-like, shape=(n_samples,)
+            Training target.
+
+        Returns
+        -------
+        self : object
+            Returns an instance of self.
+        """
+        self.a_, self.b_ = sigmoid_calibration(X, y)
+        return self
+
+    def predict(self, T):
+        """Predict new data by linear interpolation.
+
+        Parameters
+        ----------
+        T : array-like, shape (n_samples,)
+            Data to predict from.
+
+        Returns
+        -------
+        `T_` : array, shape (n_samples,)
+            The predicted data.
+        """
+        return 1. / (1. + np.exp(self.a_ * T + self.b_))
