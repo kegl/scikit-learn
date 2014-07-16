@@ -73,7 +73,8 @@ class ProbaCalibrator(BaseEstimator):
                                  'classification.')
             df = df.ravel()
             if self.method == 'isotonic':
-                this_calibrator = IsotonicRegression(y_min=0., y_max=1.)
+                this_calibrator = IsotonicRegression(y_min=0., y_max=1.,
+                                                     out_of_bounds='clip')
                 this_calibrator.fit(df, y[test])
             elif self.method == 'sigmoid':
                 this_calibrator = SigmoidCalibration()
@@ -107,7 +108,8 @@ class ProbaCalibrator(BaseEstimator):
             else:
                 df = this_estimator.predict_proba(X)[:, 1:]
             df = df.ravel()
-            log_proba += np.log(this_calibrator.predict(df))
+            tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
+            log_proba += np.log(this_calibrator.predict(df) + tiny)
 
         log_proba /= len(self.models_)
         proba = np.exp(log_proba)

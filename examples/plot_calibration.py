@@ -20,125 +20,80 @@ print __doc__
 
 import numpy as np
 
-from sklearn.datasets import make_classification
-from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_blobs
 from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import brier_score, calibration_plot
-from sklearn.svm import SVC
 from sklearn.calibration import ProbaCalibrator
 from sklearn.cross_validation import train_test_split
 
-n_samples = 6000
-n_bins = 8  # for calibration_plot
-X, y = make_classification(n_samples=n_samples, n_features=6, n_informative=4,
-                           random_state=42, n_clusters_per_class=1)
+make_blobs
+n_samples = 50000
+n_bins = 10  # for calibration_plot
+
+X, y = make_blobs(n_samples=n_samples, n_features=2, centers=3, cluster_std=1.0,
+                  center_box=(-10.0, 10.0), shuffle=False, random_state=42)
+
+y[:n_samples // 2] = 0
+y[n_samples // 2:] = 1
 
 # split train, test and OOB for calibration
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.9,
                                                     random_state=42)
 
 cv = 4
 method = 'isotonic'
-method = 'sigmoid'
+# method = 'sigmoid'
 
-# SVM with Platt
-svc = SVC(C=1., kernel='linear', probability=True)
-svc.fit(X_train, y_train)
-prob_pos_svc = svc.predict_proba(X_test)[:, 1]
+# Model with no calibration
+clf = GaussianNB()
+clf.fit(X_train, y_train)
+prob_pos_clf = clf.predict_proba(X_test)[:, 1]
 
-# Logistic Regression
-lr = LogisticRegression(C=1., intercept_scaling=100.)
-lr.fit(X_train, y_train)
-prob_pos_lr = lr.predict_proba(X_test)[:, 1]
-
+# Model with calibration
 # Logistic Regression with isotonic calibration
-lr_ir = ProbaCalibrator(lr, cv=cv, method=method)
-lr_ir.fit(X_train, y_train)
-prob_pos_lr_ir = lr_ir.predict_proba(X_test)[:, 1]
-
-# Gaussian Naive-Bayes
-nb = GaussianNB()
-nb.fit(X_train, y_train)
-prob_pos_nb = nb.predict_proba(X_test)[:, 1]
-
-# Gaussian Naive-Bayes with isotonic calibration
-nb_ir = ProbaCalibrator(nb, cv=cv, method=method)
-nb_ir.fit(X_train, y_train)
-prob_pos_nb_ir = nb_ir.predict_proba(X_test)[:, 1]
-
-# Random Forests
-rf = RandomForestClassifier()
-rf.fit(X_train, y_train)
-prob_pos_rf = rf.predict_proba(X_test)[:, 1]
-
-# Random Forests with isotonic calibration
-rf_ir = ProbaCalibrator(RandomForestClassifier(), cv=cv, method=method)
-rf_ir.fit(X_train, y_train)
-prob_pos_rf_ir = rf_ir.predict_proba(X_test)[:, 1]
+clf_pc = ProbaCalibrator(clf, cv=cv, method=method)
+clf_pc.fit(X_train, y_train)
+prob_pos_clf_pc = clf_pc.predict_proba(X_test)[:, 1]
 
 print "Brier scores: (the smaller the better)"
 
-svc_score = brier_score(y_test, prob_pos_svc)
-print "SVC + Platt: %1.3f" % svc_score
-pt_svc, pp_svc = calibration_plot(y_test, prob_pos_svc, bins=n_bins)
+clf_score = brier_score(y_test, prob_pos_clf)
+print "No calibration: %1.3f" % clf_score
+pt_clf, pp_clf = calibration_plot(y_test, prob_pos_clf, bins=n_bins)
 
-lr_score = brier_score(y_test, prob_pos_lr)
-print "LogisticRegression: %1.3f" % lr_score
-pt_lr, pp_lr = calibration_plot(y_test, prob_pos_lr, bins=n_bins)
-
-lr_ir_score = brier_score(y_test, prob_pos_lr_ir)
-print "LogisticRegression (IR): %1.3f" % lr_ir_score
-pt_lr_ir, pp_lr_ir = calibration_plot(y_test, prob_pos_lr_ir, bins=n_bins)
-
-nb_score = brier_score(y_test, prob_pos_nb)
-print "Gaussian Naive Bayes: %1.3f" % nb_score
-pt_nb, pp_nb = calibration_plot(y_test, prob_pos_nb, bins=n_bins)
-
-nb_ir_score = brier_score(y_test, prob_pos_nb_ir)
-print "Gaussian Naive Bayes (IR): %1.3f" % nb_ir_score
-pt_nb_ir, pp_nb_ir = calibration_plot(y_test, prob_pos_nb_ir, bins=n_bins)
-
-rf_score = brier_score(y_test, prob_pos_rf)
-print "Random Forests: %1.3f" % rf_score
-pt_rf, pp_rf = calibration_plot(y_test, prob_pos_rf, bins=n_bins)
-
-rf_ir_score = brier_score(y_test, prob_pos_rf_ir)
-print "Random Forests (IR): %1.3f" % rf_ir_score
-pt_rf_ir, pp_rf_ir = calibration_plot(y_test, prob_pos_rf_ir, bins=n_bins)
+clf_pc_score = brier_score(y_test, prob_pos_clf_pc)
+print "With calibration: %1.3f" % clf_pc_score
+pt_clf_pc, pp_clf_pc = calibration_plot(y_test, prob_pos_clf_pc, bins=n_bins)
 
 ###############################################################################
 # Plot calibration plots
 
-import pylab as pl
-pl.close('all')
+import matplotlib.pyplot as plt
+plt.close('all')
 
-pl.figure()
-order = np.lexsort((y_test, prob_pos_lr))
-pl.plot(prob_pos_lr[order], 'xr', label='Logistic prob(y_)')
-pl.plot(prob_pos_lr_ir[order], 'b', linewidth=3,
-        label='Isotonic Logistic prob(y_)')
-pl.plot(y_test[order], 'sg', linewidth=3, label='y')
-pl.ylim([-0.05, 1.05])
-pl.legend(loc="center left")
-pl.show()
+plt.figure()
+for this_y in np.unique(y):
+    this_X = X[y == this_y]
+    plt.plot(this_X[:, 0], this_X[:, 1], 'x')
 
-pl.figure()
-pl.xlabel("Predicted probability")
-pl.ylabel("True probability")
-pl.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
-pl.plot(pp_svc, pt_svc, "gs-", label="SVC + Platt (%0.3f)" % svc_score)
-pl.plot(pp_lr, pt_lr, "bs-", label="Log. Reg. (%0.3f)" % lr_score)
-pl.plot(pp_lr_ir, pt_lr_ir, "bs--",
-        label="Log. Reg. + IR (%0.3f)" % lr_ir_score)
-pl.plot(pp_nb, pt_nb, "rs-",
-        label="GaussianNB (%0.3f)" % nb_score)
-pl.plot(pp_nb_ir, pt_nb_ir, "rs--",
-        label="GaussianNB + IR (%0.3f)" % nb_ir_score)
-pl.plot(pp_rf, pt_rf, "ks-", label="Random Forests (%0.3f)" % rf_score)
-pl.plot(pp_rf_ir, pt_rf_ir, "ks--",
-        label="Random Forests + IR (%0.3f)" % rf_ir_score)
-pl.legend(loc="lower right")
-pl.ylim([-0.05, 1.05])
-pl.title('Calibration plots')
-pl.show()
+plt.figure()
+order = np.lexsort((y_test, prob_pos_clf))
+plt.plot(prob_pos_clf[order], 'xr', label='No calibration (%1.3f)' % clf_score)
+plt.plot(prob_pos_clf_pc[order], 'b', linewidth=3,
+        label='With calibration (%1.3f)' % clf_pc_score)
+plt.plot(y_test[order], 'sg', linewidth=3, label='y')
+plt.ylim([-0.05, 1.05])
+plt.legend(loc="upper left")
+plt.show()
+
+plt.figure()
+plt.xlabel("Predicted probability")
+plt.ylabel("True probability")
+plt.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
+plt.plot(pp_clf, pt_clf, "gs-", label="No calibration (%1.3f)" % clf_score)
+plt.plot(pp_clf_pc, pt_clf_pc, "bs-",
+        label="With calibration (%1.3f)" % clf_pc_score)
+plt.legend(loc="upper left")
+plt.ylim([-0.05, 1.05])
+plt.title('Calibration plots')
+plt.show()

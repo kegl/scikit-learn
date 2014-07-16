@@ -4,9 +4,9 @@ from sklearn.utils.testing import assert_array_almost_equal
 from nose.tools import assert_true
 
 from sklearn.datasets import make_classification
-from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import brier_score
-from sklearn.calibration import IsotonicCalibrator
+from sklearn.calibration import ProbaCalibrator
 from sklearn.calibration import sigmoid_calibration, SigmoidCalibration
 
 
@@ -19,18 +19,19 @@ def test_isotonic_calibration():
     X_train, y_train = X[:n_samples], y[:n_samples]
     X_test, y_test = X[n_samples:], y[n_samples:]
 
-    # Logistic Regression
-    clf = LogisticRegression(C=1., intercept_scaling=100.)
+    # Gaussian Nayes-Bayes
+    clf = GaussianNB()
     clf.fit(X_train, y_train)
     prob_pos_lr = clf.predict_proba(X_test)[:, 1]
 
-    # Naive Bayes with isotonic calibration
-    ir_clf = IsotonicCalibrator(clf)
-    ir_clf.fit(X_train, y_train)
-    prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
+    # Gaussian Naive Bayes with isotonic calibration
+    for method in ['isotonic', 'sigmoid']:
+        ir_clf = ProbaCalibrator(clf, method=method)
+        ir_clf.fit(X_train, y_train)
+        prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
-    assert_true(brier_score(y_test, prob_pos_lr) >
-                brier_score(y_test, prob_pos_lr_ir))
+        assert_true(brier_score(y_test, prob_pos_lr) >
+                    brier_score(y_test, prob_pos_lr_ir))
 
 
 def test_sigmoid_calibration():

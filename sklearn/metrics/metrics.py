@@ -124,7 +124,8 @@ def calibration_plot(y_true, y_prob, bins=5, verbose=0):
     """
     y_true = _check_and_normalize(y_true, y_prob)
 
-    bins = np.linspace(0, 1.0, bins)
+    bins = np.linspace(0, y_true.size - 1, bins + 1).astype(np.int)
+    bins = np.sort(y_prob)[bins]
     binids = np.digitize(y_prob, bins)
     binids -= 1
     ids = np.arange(len(y_true))
