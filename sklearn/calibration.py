@@ -1,6 +1,6 @@
 """Calibration estimators."""
 
-# Author: Alexandre Gramfort <alexandre.gramfort@inria.fr>
+# Author: Alexandre Gramfort <alexandre.gramfort@telecom-paristech.fr>
 # License: BSD Style
 
 import numpy as np
@@ -36,16 +36,16 @@ class IsotonicCalibrator(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape = [n_samples, n_features]
+        X : array-like, shape (n_samples, n_features)
             Training data.
 
-        y : array-like, shape = [n_samples]
+        y : array-like, shape (n_samples,)
             Target values.
 
-        X_oob : array-like, shape = [n_samples, n_features]
+        X_oob : array-like, shape (n_samples, n_features)
             Out of bag training data used for calibration.
 
-        y_oob : array-like, shape = [n_samples]
+        y_oob : array-like, shape (n_samples,)
             Out of bag targets used for calibration.
 
         Returns
@@ -62,7 +62,7 @@ class IsotonicCalibrator(BaseEstimator):
             raise ValueError('IsotonicCalibrator only support binary '
                              'classification.')
         df = df.ravel()
-        self._ir = IsotonicRegression(y_min=0., y_max=1.)
+        self._ir = IsotonicRegression(y_min=0., y_max=1., out_of_bounds='clip')
         self._ir.fit(df, y_oob)
         return self
 
@@ -74,11 +74,12 @@ class IsotonicCalibrator(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape = [n_samples, n_features]
+        X : array-like, shape (n_samples, n_features)
+            The samples.
 
         Returns
         -------
-        C : array, shape = [n_samples, 2]
+        C : array, shape (n_samples, 2)
             The predicted probas.
         """
         if hasattr(self.estimator, "decision_function"):
@@ -95,11 +96,12 @@ class IsotonicCalibrator(BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, shape = [n_samples, n_features]
+        X : array-like, shape (n_samples, n_features)
+            The samples.
 
         Returns
         -------
-        C : array, shape = [n_samples]
+        C : array, shape (n_samples,)
             The predicted class.
         """
         prob = self.predict_proba(X)[:, 1]

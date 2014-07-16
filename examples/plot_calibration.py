@@ -15,7 +15,7 @@ with Brier's score (see http://en.wikipedia.org/wiki/Brier_score).
 print __doc__
 
 # Author: Mathieu Blondel <mathieu@mblondel.org>
-#         Alexandre Gramfort <alexandre.gramfort@inria.fr>
+#         Alexandre Gramfort <alexandre.gramfort@telecom-paristech.fr>
 # License: BSD Style.
 
 import numpy as np
