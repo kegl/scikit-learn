@@ -13,11 +13,11 @@ from scipy.optimize import fmin_bfgs
 from .base import BaseEstimator, RegressorMixin, clone
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
-from .cross_validation import check_cv
+from .cross_validation import _check_cv
 
 
-class IsotonicCalibrator(BaseEstimator):
-    """Probability calibration with Isotonic Regression
+class ProbaCalibrator(BaseEstimator):
+    """Probability calibration with Isotonic Regression or sigmoid
 
     Parameters
     ----------
@@ -33,9 +33,12 @@ class IsotonicCalibrator(BaseEstimator):
 
     Transforming Classifier Scores into Accurate Multiclass
     Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
+
+    Platt, "Probabilistic Outputs for Support Vector Machines"
     """
-    def __init__(self, estimator=GaussianNB(), cv=2):
+    def __init__(self, estimator=GaussianNB(), method='sigmoid', cv=3):
         self.estimator = estimator
+        self.method = method
         self.cv = cv
 
     def fit(self, X, y):
@@ -56,7 +59,7 @@ class IsotonicCalibrator(BaseEstimator):
         self : object
             returns an instance of self.
         """
-        cv = check_cv(self.cv, X, y)
+        cv = _check_cv(self.cv, X, y, classifier=True)
         self.models_ = []
         for train, test in cv:
             this_estimator = clone(self.estimator)
@@ -69,9 +72,16 @@ class IsotonicCalibrator(BaseEstimator):
                 raise ValueError('IsotonicCalibrator only support binary '
                                  'classification.')
             df = df.ravel()
-            this_ir = IsotonicRegression(y_min=0., y_max=1.)
-            this_ir.fit(df, y[test])
-            self.models_.append((this_estimator, this_ir))
+            if self.method == 'isotonic':
+                this_calibrator = IsotonicRegression(y_min=0., y_max=1.)
+                this_calibrator.fit(df, y[test])
+            elif self.method == 'sigmoid':
+                this_calibrator = SigmoidCalibration()
+                this_calibrator.fit(df, y[test])
+            else:
+                raise ValueError('method should be "sigmoid" or "isotonic". '
+                                 'Got %s.' % self.method)
+            self.models_.append((this_estimator, this_calibrator))
         return self
 
     def predict_proba(self, X):
@@ -91,13 +101,13 @@ class IsotonicCalibrator(BaseEstimator):
             The predicted probas.
         """
         log_proba = np.zeros(X.shape[0])
-        for this_estimator, this_ir in self.models_:
+        for this_estimator, this_calibrator in self.models_:
             if hasattr(this_estimator, "decision_function"):
                 df = this_estimator.decision_function(X)
             else:
                 df = this_estimator.predict_proba(X)[:, 1:]
             df = df.ravel()
-            log_proba += np.log(this_ir.predict(df))
+            log_proba += np.log(this_calibrator.predict(df))
 
         log_proba /= len(self.models_)
         proba = np.exp(log_proba)
@@ -127,7 +137,7 @@ def sigmoid_calibration(df, y):
     Parameters
     ----------
     df : ndarray, shape (n_samples,)
-        The decision function for the samples.
+        The decision function or predict proba for the samples.
     y : ndarray, shape (n_samples,)
         The targets.
 

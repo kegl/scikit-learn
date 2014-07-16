@@ -17,8 +17,6 @@ def test_isotonic_calibration():
 
     # split train, test and OOB for calibration
     X_train, y_train = X[:n_samples], y[:n_samples]
-    X_train_oob, y_train_oob = X[:n_samples / 2], y[:n_samples / 2]
-    X_oob, y_oob = X[n_samples / 2:], y[n_samples / 2:]
     X_test, y_test = X[n_samples:], y[n_samples:]
 
     # Logistic Regression
@@ -27,9 +25,8 @@ def test_isotonic_calibration():
     prob_pos_lr = clf.predict_proba(X_test)[:, 1]
 
     # Naive Bayes with isotonic calibration
-    # clf = BernoulliNB()  # XXX : make it work in NB
     ir_clf = IsotonicCalibrator(clf)
-    ir_clf.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+    ir_clf.fit(X_train, y_train)
     prob_pos_lr_ir = ir_clf.predict_proba(X_test)[:, 1]
 
     assert_true(brier_score(y_test, prob_pos_lr) >

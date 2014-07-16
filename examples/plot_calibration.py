@@ -26,7 +26,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import brier_score, calibration_plot
 from sklearn.svm import SVC
-from sklearn.calibration import IsotonicCalibrator
+from sklearn.calibration import ProbaCalibrator
 from sklearn.cross_validation import train_test_split
 
 n_samples = 6000
@@ -37,8 +37,10 @@ X, y = make_classification(n_samples=n_samples, n_features=6, n_informative=4,
 # split train, test and OOB for calibration
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
                                                     random_state=42)
-X_train_oob, X_oob, y_train_oob, y_oob = train_test_split(X_train, y_train,
-                                                test_size=0.25, random_state=42)
+
+cv = 4
+method = 'isotonic'
+method = 'sigmoid'
 
 # SVM with Platt
 svc = SVC(C=1., kernel='linear', probability=True)
@@ -51,8 +53,8 @@ lr.fit(X_train, y_train)
 prob_pos_lr = lr.predict_proba(X_test)[:, 1]
 
 # Logistic Regression with isotonic calibration
-lr_ir = IsotonicCalibrator(lr)
-lr_ir.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+lr_ir = ProbaCalibrator(lr, cv=cv, method=method)
+lr_ir.fit(X_train, y_train)
 prob_pos_lr_ir = lr_ir.predict_proba(X_test)[:, 1]
 
 # Gaussian Naive-Bayes
@@ -61,8 +63,8 @@ nb.fit(X_train, y_train)
 prob_pos_nb = nb.predict_proba(X_test)[:, 1]
 
 # Gaussian Naive-Bayes with isotonic calibration
-nb_ir = IsotonicCalibrator(nb)
-nb_ir.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+nb_ir = ProbaCalibrator(nb, cv=cv, method=method)
+nb_ir.fit(X_train, y_train)
 prob_pos_nb_ir = nb_ir.predict_proba(X_test)[:, 1]
 
 # Random Forests
@@ -71,8 +73,8 @@ rf.fit(X_train, y_train)
 prob_pos_rf = rf.predict_proba(X_test)[:, 1]
 
 # Random Forests with isotonic calibration
-rf_ir = IsotonicCalibrator(RandomForestClassifier())
-rf_ir.fit(X_train_oob, y_train_oob, X_oob, y_oob)
+rf_ir = ProbaCalibrator(RandomForestClassifier(), cv=cv, method=method)
+rf_ir.fit(X_train, y_train)
 prob_pos_rf_ir = rf_ir.predict_proba(X_test)[:, 1]
 
 print "Brier scores: (the smaller the better)"
