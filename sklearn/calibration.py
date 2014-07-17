@@ -60,6 +60,7 @@ class ProbabilityCalibrator(BaseEstimator):
             returns an instance of self.
         """
         cv = _check_cv(self.cv, X, y, classifier=True)
+        pos_label = np.max(y)  # XXX hack
         self.models_ = []
         for train, test in cv:
             this_estimator = clone(self.estimator)
@@ -75,10 +76,10 @@ class ProbabilityCalibrator(BaseEstimator):
             if self.method == 'isotonic':
                 this_calibrator = IsotonicRegression(y_min=0., y_max=1.,
                                                      out_of_bounds='clip')
-                this_calibrator.fit(df, y[test])
+                this_calibrator.fit(df, y[test] == pos_label)
             elif self.method == 'sigmoid':
                 this_calibrator = _SigmoidCalibration()
-                this_calibrator.fit(df, y[test])
+                this_calibrator.fit(df, y[test] == pos_label)
             else:
                 raise ValueError('method should be "sigmoid" or "isotonic". '
                                  'Got %s.' % self.method)
@@ -109,7 +110,7 @@ class ProbabilityCalibrator(BaseEstimator):
                 df = this_estimator.predict_proba(X)[:, 1:]
             df = df.ravel()
             tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
-            log_proba += np.log(this_calibrator.predict(df) + tiny)
+            log_proba += np.log(np.maximum(this_calibrator.predict(df), tiny))
 
         log_proba /= len(self.models_)
         proba = np.exp(log_proba)

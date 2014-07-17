@@ -116,21 +116,28 @@ def calibration_plot(y_true, y_prob, n_bins=5):
     Returns
     -------
     prob_true : array, shape (n_bins,)
-        The true probability in each bin.
+        The true probability in each bin (fraction of positives).
 
     prob_pred : array, shape (n_bins,)
-        The predicted probability in each bin.
+        The mean predicted probability in each bin.
+
+    References
+    ----------
+    Alexandru Niculescu-Mizil and Rich Caruana (2005) Predicting Good
+    Probabilities With Supervised Learning, in Proceedings of the 22nd
+    International Conference on Machine Learning (ICML).
+    See section 4 (Qualitative Analysis of Predictions).
     """
     y_true = _check_and_normalize(y_true, y_prob)
 
-    # Adaptive binning
-    bins = np.linspace(0, y_true.size - 1, n_bins + 1).astype(np.int)
-    bins = np.sort(y_prob)[bins]
-    bins[0] = 0.
-    bins[-1] = 1.
+    # # Adaptive binning
+    # bins = np.linspace(0, y_true.size - 1, n_bins + 1).astype(np.int)
+    # bins = np.sort(y_prob)[bins]
+    # bins[0] = 0.
+    # bins[-1] = 1.
 
-    # # Fixed binning
-    # bins = np.linspace(0., 1., n_bins + 1)
+    # Fixed binning
+    bins = np.linspace(0., 1., n_bins + 1)
 
     binids = np.digitize(y_prob, bins) - 1
     ids = np.arange(len(y_true))
