@@ -16,7 +16,7 @@ from .naive_bayes import GaussianNB
 from .cross_validation import _check_cv
 
 
-class ProbaCalibrator(BaseEstimator):
+class ProbabilityCalibrator(BaseEstimator):
     """Probability calibration with Isotonic Regression or sigmoid
 
     Parameters
@@ -77,7 +77,7 @@ class ProbaCalibrator(BaseEstimator):
                                                      out_of_bounds='clip')
                 this_calibrator.fit(df, y[test])
             elif self.method == 'sigmoid':
-                this_calibrator = SigmoidCalibration()
+                this_calibrator = _SigmoidCalibration()
                 this_calibrator.fit(df, y[test])
             else:
                 raise ValueError('method should be "sigmoid" or "isotonic". '
@@ -150,9 +150,9 @@ def sigmoid_calibration(df, y):
     b : float
         The intercept.
 
-    Notes
-    -----
-    Reference: Platt, "Probabilistic Outputs for Support Vector Machines"
+    References
+    ----------
+    Platt, "Probabilistic Outputs for Support Vector Machines"
     """
     F = df  # F follows Platt's notations
     tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
@@ -186,7 +186,7 @@ def sigmoid_calibration(df, y):
     return AB_
 
 
-class SigmoidCalibration(BaseEstimator, RegressorMixin):
+class _SigmoidCalibration(BaseEstimator, RegressorMixin):
     """Sigmoid regression model.
 
     Attributes

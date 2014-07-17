@@ -23,7 +23,7 @@ import numpy as np
 from sklearn.datasets import make_blobs
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import brier_score, calibration_plot
-from sklearn.calibration import ProbaCalibrator
+from sklearn.calibration import ProbabilityCalibrator
 from sklearn.cross_validation import train_test_split
 
 make_blobs
@@ -51,7 +51,7 @@ prob_pos_clf = clf.predict_proba(X_test)[:, 1]
 
 # Model with calibration
 # Logistic Regression with isotonic calibration
-clf_pc = ProbaCalibrator(clf, cv=cv, method=method)
+clf_pc = ProbabilityCalibrator(clf, cv=cv, method=method)
 clf_pc.fit(X_train, y_train)
 prob_pos_clf_pc = clf_pc.predict_proba(X_test)[:, 1]
 
@@ -59,11 +59,11 @@ print "Brier scores: (the smaller the better)"
 
 clf_score = brier_score(y_test, prob_pos_clf)
 print "No calibration: %1.3f" % clf_score
-pt_clf, pp_clf = calibration_plot(y_test, prob_pos_clf, bins=n_bins)
+pt_clf, pp_clf = calibration_plot(y_test, prob_pos_clf, n_bins=n_bins)
 
 clf_pc_score = brier_score(y_test, prob_pos_clf_pc)
 print "With calibration: %1.3f" % clf_pc_score
-pt_clf_pc, pp_clf_pc = calibration_plot(y_test, prob_pos_clf_pc, bins=n_bins)
+pt_clf_pc, pp_clf_pc = calibration_plot(y_test, prob_pos_clf_pc, n_bins=n_bins)
 
 ###############################################################################
 # Plot calibration plots

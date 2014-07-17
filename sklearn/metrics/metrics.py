@@ -99,52 +99,48 @@ def brier_score(y_true, y_prob):
     return np.mean((y_true - y_prob) ** 2)
 
 
-def calibration_plot(y_true, y_prob, bins=5, verbose=0):
+def calibration_plot(y_true, y_prob, n_bins=5):
     """Compute true and predicted probabilities for a calibration plot
 
     Parameters
     ----------
-    y_true : array, shape = [n_samples]
+    y_true : array, shape (n_samples,)
         True targets.
 
-    y_prob : array, shape = [n_samples]
+    y_prob : array, shape (n_samples,)
         Probabilities of the positive class.
 
-    bins: int
+    n_bins : int
         Number of bins. A bigger number requires more data.
 
     Returns
     -------
-    prob_true: array, shape = [n]
+    prob_true : array, shape (n_bins,)
+        The true probability in each bin.
 
-    prob_pred: array, shape = [n]
-
-    where n is the number of non-empty bins.
-
+    prob_pred : array, shape (n_bins,)
+        The predicted probability in each bin.
     """
     y_true = _check_and_normalize(y_true, y_prob)
 
-    bins = np.linspace(0, y_true.size - 1, bins + 1).astype(np.int)
+    # Adaptive binning
+    bins = np.linspace(0, y_true.size - 1, n_bins + 1).astype(np.int)
     bins = np.sort(y_prob)[bins]
-    binids = np.digitize(y_prob, bins)
-    binids -= 1
+    bins[0] = 0.
+    bins[-1] = 1.
+
+    # # Fixed binning
+    # bins = np.linspace(0., 1., n_bins + 1)
+
+    binids = np.digitize(y_prob, bins) - 1
     ids = np.arange(len(y_true))
 
     prob_true = []
     prob_pred = []
 
-    for binid in xrange(len(bins)):
+    for binid in np.unique(binids):
         sel = ids[binids == binid]
-
-        if verbose:
-            print "Bin", binid
-            print " #total:", len(sel)
-            print " #pos:", np.sum(y_true[sel] == 1)
-            print " #neg:", np.sum(y_true[sel] == 0)
-
-        if len(sel) > 0:
-            # The bin is non-empty.
-            prob_true.append(np.mean(y_true[sel]))
-            prob_pred.append(np.mean(y_prob[sel]))
+        prob_true.append(np.mean(y_true[sel]))
+        prob_pred.append(np.mean(y_prob[sel]))
 
     return np.array(prob_true), np.array(prob_pred)
