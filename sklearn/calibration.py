@@ -11,6 +11,7 @@ import numpy as np
 from scipy.optimize import fmin_bfgs
 
 from .base import BaseEstimator, RegressorMixin, clone
+from .utils import check_arrays
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
 from .cross_validation import _check_cv
@@ -59,6 +60,7 @@ class ProbabilityCalibrator(BaseEstimator):
         self : object
             returns an instance of self.
         """
+        X, y = check_arrays(X, y, sparse_format='dense')
         cv = _check_cv(self.cv, X, y, classifier=True)
         pos_label = np.max(y)  # XXX hack
         self.models_ = []
@@ -102,6 +104,7 @@ class ProbabilityCalibrator(BaseEstimator):
         C : array, shape (n_samples, 2)
             The predicted probas.
         """
+        X = check_arrays(X, sparse_format='dense')
         log_proba = np.zeros(X.shape[0])
         for this_estimator, this_calibrator in self.models_:
             if hasattr(this_estimator, "decision_function"):
@@ -155,6 +158,8 @@ def sigmoid_calibration(df, y):
     ----------
     Platt, "Probabilistic Outputs for Support Vector Machines"
     """
+    df, y = check_arrays(df, y, sparse_format='dense')
+
     F = df  # F follows Platt's notations
     tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
 
@@ -214,6 +219,11 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
         self : object
             Returns an instance of self.
         """
+        X, y = check_arrays(X, y, sparse_format='dense')
+
+        if len(X.shape) != 1:
+            raise ValueError("X should be a 1d array")
+
         self.a_, self.b_ = sigmoid_calibration(X, y)
         return self
 
@@ -230,4 +240,5 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
         `T_` : array, shape (n_samples,)
             The predicted data.
         """
+        T = check_arrays(T, sparse_format='dense')
         return 1. / (1. + np.exp(self.a_ * T + self.b_))
