@@ -104,8 +104,8 @@ class ProbabilityCalibrator(BaseEstimator):
         C : array, shape (n_samples, 2)
             The predicted probas.
         """
-        X = check_arrays(X, sparse_format='dense')
-        log_proba = np.zeros(X.shape[0])
+        X, = check_arrays(X, sparse_format='dense')
+        log_proba = np.zeros(len(X))
         for this_estimator, this_calibrator in self.models_:
             if hasattr(this_estimator, "decision_function"):
                 df = this_estimator.decision_function(X)
@@ -240,5 +240,5 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
         `T_` : array, shape (n_samples,)
             The predicted data.
         """
-        T = check_arrays(T, sparse_format='dense')
+        T, = check_arrays(T, sparse_format='dense')
         return 1. / (1. + np.exp(self.a_ * T + self.b_))
