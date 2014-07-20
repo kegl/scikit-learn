@@ -1,3 +1,6 @@
+# Authors: Alexandre Gramfort <alexandre.gramfort@telecom-paristech.fr>
+# License: BSD 3 clause
+
 import numpy as np
 from scipy import sparse
 
@@ -5,7 +8,8 @@ from sklearn.utils.testing import assert_array_almost_equal
 from nose.tools import assert_true
 
 from sklearn.datasets import make_classification, make_blobs
-from sklearn.naive_bayes import GaussianNB, MultinomialNB
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
 from sklearn.metrics import brier_score
 from sklearn.calibration import ProbabilityCalibrator
 from sklearn.calibration import sigmoid_calibration, _SigmoidCalibration
@@ -17,14 +21,13 @@ def test_calibration():
     X, y = make_classification(n_samples=2 * n_samples, n_features=6,
                                random_state=42)
 
-    X[X < 0] = 0
+    X -= X.min()  # MultinomialNB only allows postive X
 
     # split train and test
     X_train, y_train = X[:n_samples], y[:n_samples]
     X_test, y_test = X[n_samples:], y[n_samples:]
 
     # Nayes-Bayes
-    # clf = GaussianNB()  # XXX : GaussianNB does not support sparse data !!!
     clf = MultinomialNB()
     clf.fit(X_train, y_train)
     prob_pos_clf = clf.predict_proba(X_test)[:, 1]
@@ -41,13 +44,19 @@ def test_calibration():
             assert_true(brier_score(y_test, prob_pos_clf) >
                         brier_score(y_test, prob_pos_pc_clf))
 
-    # test multi-class setting
-    X, y = make_blobs(n_samples=2 * n_samples, n_features=2, random_state=42)
-    X -= X.min()
+    # test multi-class setting with classifier that implements
+    # only decision function
+    clf = LinearSVC()
+    X, y = make_blobs(n_samples=100, n_features=2, random_state=42,
+                      cluster_std=3.0)
+    X_train, y_train = X[::2], y[::2]
+    X_test, y_test = X[1::2], y[1::2]
     ir_clf = ProbabilityCalibrator(clf, method='isotonic')
-    ir_clf.fit(X, y)
-    probas = ir_clf.predict_proba(X)
-    assert_array_almost_equal(np.sum(probas, axis=1), np.ones(len(X)))
+    ir_clf.fit(X_train, y_train)
+    probas = ir_clf.predict_proba(X_test)
+    assert_array_almost_equal(np.sum(probas, axis=1), np.ones(len(X_test)))
+    assert_true(clf.fit(X_train, y_train).score(X_test, y_test) <
+                ir_clf.fit(X_train, y_train).score(X_test, y_test))
 
 
 def test_sigmoid_calibration():

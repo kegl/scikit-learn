@@ -10,7 +10,7 @@ import numpy as np
 
 from scipy.optimize import fmin_bfgs
 
-from .base import BaseEstimator, RegressorMixin, clone
+from .base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from .preprocessing import LabelBinarizer
 from .utils import check_arrays
 from .isotonic import IsotonicRegression
@@ -18,7 +18,7 @@ from .naive_bayes import GaussianNB
 from .cross_validation import _check_cv
 
 
-class ProbabilityCalibrator(BaseEstimator):
+class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
     """Probability calibration with Isotonic Regression or sigmoid
 
     Parameters
@@ -49,10 +49,13 @@ class ProbabilityCalibrator(BaseEstimator):
             df = estimator.decision_function(X)
             if df.ndim == 1:
                 df = df[:, np.newaxis]
-        else:
+        elif hasattr(estimator, "predict_proba"):
             df = estimator.predict_proba(X)
             if n_classes == 2:
                 df = df[:, 1:]
+        else:
+            raise RuntimeError('classifier has not decision_function or '
+                               'predict_proba methods.')
 
         idx_pos_class = np.arange(df.shape[1])
 

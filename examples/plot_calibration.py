@@ -19,6 +19,7 @@ print __doc__
 # License: BSD Style.
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from sklearn.datasets import make_blobs
 from sklearn.naive_bayes import GaussianNB
@@ -77,7 +78,6 @@ pt_clf_sigmoid, pp_clf_sigmoid = calibration_plot(y_test, prob_pos_sigmoid,
 ###############################################################################
 # Plot calibration plots
 
-import matplotlib.pyplot as plt
 plt.close('all')
 
 plt.figure()
@@ -89,9 +89,9 @@ plt.figure()
 order = np.lexsort((y_test, prob_pos_clf))
 plt.plot(prob_pos_clf[order], 'xr', label='No calibration (%1.3f)' % clf_score)
 plt.plot(prob_pos_isotonic[order], 'g', linewidth=3,
-        label='Isotonic calibration (%1.3f)' % clf_isotonic_score)
+         label='Isotonic calibration (%1.3f)' % clf_isotonic_score)
 plt.plot(prob_pos_sigmoid[order], 'b', linewidth=3,
-        label='Simoid calibration (%1.3f)' % clf_sigmoid_score)
+         label='Simoid calibration (%1.3f)' % clf_sigmoid_score)
 plt.plot(y_test[order], 'sg', linewidth=3, label='y')
 plt.ylim([-0.05, 1.05])
 plt.legend(loc="upper left")
@@ -103,9 +103,9 @@ plt.ylabel("Fraction of positives")
 plt.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
 plt.plot(pp_clf, pt_clf, "rs-", label="No calibration (%1.3f)" % clf_score)
 plt.plot(pp_clf_isotonic, pt_clf_isotonic, "gs-",
-        label="Isotonic calibration (%1.3f)" % clf_isotonic_score)
+         label="Isotonic calibration (%1.3f)" % clf_isotonic_score)
 plt.plot(pp_clf_sigmoid, pt_clf_sigmoid, "bs-",
-        label="Sigmoid calibration (%1.3f)" % clf_sigmoid_score)
+         label="Sigmoid calibration (%1.3f)" % clf_sigmoid_score)
 plt.legend(loc="upper left")
 plt.ylim([-0.05, 1.05])
 plt.title('Calibration plots')
