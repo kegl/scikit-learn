@@ -11,6 +11,7 @@ import numpy as np
 from scipy.optimize import fmin_bfgs
 
 from .base import BaseEstimator, RegressorMixin, clone
+from .preprocessing import LabelBinarizer
 from .utils import check_arrays
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
@@ -42,6 +43,21 @@ class ProbabilityCalibrator(BaseEstimator):
         self.method = method
         self.cv = cv
 
+    def _preproc(self, estimator, X):
+        n_classes = len(self.classes_)
+        if hasattr(estimator, "decision_function"):
+            df = estimator.decision_function(X)
+            if df.ndim == 1:
+                df = df[:, np.newaxis]
+        else:
+            df = estimator.predict_proba(X)
+            if n_classes == 2:
+                df = df[:, 1:]
+
+        idx_pos_class = np.arange(df.shape[1])
+
+        return df, idx_pos_class
+
     def fit(self, X, y):
         """Fit the calibrated model
 
@@ -62,30 +78,32 @@ class ProbabilityCalibrator(BaseEstimator):
         """
         X, y = check_arrays(X, y)
         cv = _check_cv(self.cv, X, y, classifier=True)
-        pos_label = np.max(y)  # XXX hack
+        lb = LabelBinarizer()
+        Y = lb.fit_transform(y)
+        self.classes_ = lb.classes_
         self.models_ = []
+
         for train, test in cv:
             this_estimator = clone(self.estimator)
             this_estimator.fit(X[train], y[train])
-            if hasattr(this_estimator, "decision_function"):
-                df = this_estimator.decision_function(X[test])
-            else:
-                df = this_estimator.predict_proba(X[test])[:, 1:]
-            if df.ndim > 1 and df.shape[1] > 1:
-                raise ValueError('IsotonicCalibrator only support binary '
-                                 'classification.')
-            df = df.ravel()
-            if self.method == 'isotonic':
-                this_calibrator = IsotonicRegression(y_min=0., y_max=1.,
-                                                     out_of_bounds='clip')
-                this_calibrator.fit(df, y[test] == pos_label)
-            elif self.method == 'sigmoid':
-                this_calibrator = _SigmoidCalibration()
-                this_calibrator.fit(df, y[test] == pos_label)
-            else:
-                raise ValueError('method should be "sigmoid" or "isotonic". '
-                                 'Got %s.' % self.method)
-            self.models_.append((this_estimator, this_calibrator))
+
+            df, idx_pos_class = self._preproc(this_estimator, X[test])
+            this_calibrators = []
+
+            for k, this_df in zip(idx_pos_class, df.T):
+                if self.method == 'isotonic':
+                    this_calibrator = IsotonicRegression(y_min=0., y_max=1.,
+                                                         out_of_bounds='clip')
+                    this_calibrator.fit(this_df, Y[test, k])
+                elif self.method == 'sigmoid':
+                    this_calibrator = _SigmoidCalibration()
+                    this_calibrator.fit(this_df, Y[test, k])
+                else:
+                    raise ValueError('method should be "sigmoid" or '
+                                     '"isotonic". Got %s.' % self.method)
+                this_calibrators.append(this_calibrator)
+            self.models_.append((this_estimator, this_calibrators))
+
         return self
 
     def predict_proba(self, X):
@@ -105,19 +123,30 @@ class ProbabilityCalibrator(BaseEstimator):
             The predicted probas.
         """
         X, = check_arrays(X)
-        log_proba = np.zeros(X.shape[0])
-        for this_estimator, this_calibrator in self.models_:
-            if hasattr(this_estimator, "decision_function"):
-                df = this_estimator.decision_function(X)
-            else:
-                df = this_estimator.predict_proba(X)[:, 1:]
-            df = df.ravel()
-            tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
-            log_proba += np.log(np.maximum(this_calibrator.predict(df), tiny))
+        n_classes = len(self.classes_)
+        log_proba = np.zeros((X.shape[0], n_classes))
+        tiny = np.finfo(np.float).tiny
+
+        for this_estimator, this_calibrators in self.models_:
+            df, idx_pos_class = self._preproc(this_estimator, X)
+
+            for k, this_df, this_calibrator in \
+                    zip(idx_pos_class, df.T, this_calibrators):
+                if n_classes == 2:
+                    k += 1
+                proba = this_calibrator.predict(this_df)
+                proba = np.maximum(proba, tiny)  # to avoid log of 0 warning
+                log_proba[:, k] += np.log(proba)
 
         log_proba /= len(self.models_)
         proba = np.exp(log_proba)
-        proba = np.c_[1. - proba, proba]
+
+        # Normalize the probabilities
+        if n_classes == 2:
+            proba[:, 0] = 1. - proba[:, 1]
+        else:
+            proba /= np.sum(proba, axis=1)[:, np.newaxis]
+
         return proba
 
     def predict(self, X):
@@ -133,8 +162,7 @@ class ProbabilityCalibrator(BaseEstimator):
         C : array, shape (n_samples,)
             The predicted class.
         """
-        prob = self.predict_proba(X)[:, 1]
-        return prob > 0.5
+        return self.classes_[np.argmax(self.predict_proba(X), axis=1)]
 
 
 def sigmoid_calibration(df, y):
