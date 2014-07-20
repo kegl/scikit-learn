@@ -11,7 +11,8 @@ from sklearn.calibration import ProbabilityCalibrator
 from sklearn.calibration import sigmoid_calibration, _SigmoidCalibration
 
 
-def test_isotonic_calibration():
+def test_calibration():
+    """Test calibration objects with isotonic and sigmoid"""
     n_samples = 500
     X, y = make_classification(n_samples=2 * n_samples, n_features=6,
                                random_state=42)
@@ -23,7 +24,7 @@ def test_isotonic_calibration():
     X_test, y_test = X[n_samples:], y[n_samples:]
 
     # Gaussian Nayes-Bayes
-    clf = GaussianNB()
+    # clf = GaussianNB()  # XXX : GaussianNB does not support sparse data !!!
     clf = MultinomialNB()
     clf.fit(X_train, y_train)
     prob_pos_lr = clf.predict_proba(X_test)[:, 1]
@@ -42,6 +43,7 @@ def test_isotonic_calibration():
 
 
 def test_sigmoid_calibration():
+    """Test calibration values with Platt sigmoid model"""
     exF = np.array([5, -4, 1.0])
     exY = np.array([1, -1, -1])
     # computed from my python port of the C++ code in LibSVM
