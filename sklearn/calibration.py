@@ -60,7 +60,7 @@ class ProbabilityCalibrator(BaseEstimator):
         self : object
             returns an instance of self.
         """
-        X, y = check_arrays(X, y, sparse_format='dense')
+        X, y = check_arrays(X, y)
         cv = _check_cv(self.cv, X, y, classifier=True)
         pos_label = np.max(y)  # XXX hack
         self.models_ = []
@@ -104,8 +104,8 @@ class ProbabilityCalibrator(BaseEstimator):
         C : array, shape (n_samples, 2)
             The predicted probas.
         """
-        X, = check_arrays(X, sparse_format='dense')
-        log_proba = np.zeros(len(X))
+        X, = check_arrays(X)
+        log_proba = np.zeros(X.shape[0])
         for this_estimator, this_calibrator in self.models_:
             if hasattr(this_estimator, "decision_function"):
                 df = this_estimator.decision_function(X)
