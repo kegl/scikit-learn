@@ -12,7 +12,7 @@ from scipy.optimize import fmin_bfgs
 
 from .base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from .preprocessing import LabelBinarizer
-from .utils import check_arrays
+from .utils import check_array, indexable, column_or_1d
 from .isotonic import IsotonicRegression
 from .naive_bayes import GaussianNB
 from .cross_validation import _check_cv
@@ -79,7 +79,10 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         self : object
             returns an instance of self.
         """
-        X, y = check_arrays(X, y)
+        X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
+        y = column_or_1d(y)
+        X, y = indexable(X, y)
+
         cv = _check_cv(self.cv, X, y, classifier=True)
         lb = LabelBinarizer()
         Y = lb.fit_transform(y)
@@ -125,7 +128,7 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         C : array, shape (n_samples, 2)
             The predicted probas.
         """
-        X, = check_arrays(X)
+        X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
         n_classes = len(self.classes_)
         log_proba = np.zeros((X.shape[0], n_classes))
         tiny = np.finfo(np.float).tiny
@@ -189,7 +192,8 @@ def sigmoid_calibration(df, y):
     ----------
     Platt, "Probabilistic Outputs for Support Vector Machines"
     """
-    df, y = check_arrays(df, y, sparse_format='dense')
+    df = column_or_1d(df)
+    y = column_or_1d(y)
 
     F = df  # F follows Platt's notations
     tiny = np.finfo(np.float).tiny  # to avoid division by 0 warning
@@ -250,7 +254,9 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
         self : object
             Returns an instance of self.
         """
-        X, y = check_arrays(X, y, sparse_format='dense')
+        X = column_or_1d(X)
+        y = column_or_1d(y)
+        X, y = indexable(X, y)
 
         if len(X.shape) != 1:
             raise ValueError("X should be a 1d array")
@@ -271,5 +277,5 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
         `T_` : array, shape (n_samples,)
             The predicted data.
         """
-        T, = check_arrays(T, sparse_format='dense')
+        T = column_or_1d(T)
         return 1. / (1. + np.exp(self.a_ * T + self.b_))

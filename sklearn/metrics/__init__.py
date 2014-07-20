@@ -25,6 +25,8 @@ from .classification import precision_recall_fscore_support
 from .classification import precision_score
 from .classification import recall_score
 from .classification import zero_one_loss
+from .classification import brier_score
+from .classification import calibration_plot
 
 from . import cluster
 from .cluster import adjusted_mutual_info_score
