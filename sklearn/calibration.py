@@ -27,6 +27,16 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         The classifier whose output decision function needs to be calibrated
         to offer more accurate predict_proba outputs.
 
+    method : 'sigmoid' | 'isotonic'
+        The method to use for calibration. Can be 'sigmoid' which
+        corresponds to Platt's method or 'isotonic' which is a
+        non-parameteric approach.
+
+    cv : integer or cross-validation generator, optional
+        If an integer is passed, it is the number of folds (default 3).
+        Specific cross-validation objects can be passed, see
+        sklearn.cross_validation module for the list of possible objects
+
     Notes
     -----
     References:
@@ -71,8 +81,6 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
 
         y : array-like, shape (n_samples,)
             Target values.
-
-        cv : a cross-validation object
 
         Returns
         -------
@@ -125,7 +133,7 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        C : array, shape (n_samples, 2)
+        C : array, shape (n_samples, n_classes)
             The predicted probas.
         """
         X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
@@ -156,7 +164,7 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         return proba
 
     def predict(self, X):
-        """Predit the target of new samples.
+        """Predict the target of new samples.
 
         Parameters
         ----------
@@ -178,6 +186,7 @@ def sigmoid_calibration(df, y):
     ----------
     df : ndarray, shape (n_samples,)
         The decision function or predict proba for the samples.
+
     y : ndarray, shape (n_samples,)
         The targets.
 
@@ -185,6 +194,7 @@ def sigmoid_calibration(df, y):
     -------
     a : float
         The slope.
+
     b : float
         The intercept.
 
@@ -243,10 +253,10 @@ class _SigmoidCalibration(BaseEstimator, RegressorMixin):
 
         Parameters
         ----------
-        X : array-like, shape=(n_samples,)
+        X : array-like, shape (n_samples,)
             Training data.
 
-        y : array-like, shape=(n_samples,)
+        y : array-like, shape (n_samples,)
             Training target.
 
         Returns
