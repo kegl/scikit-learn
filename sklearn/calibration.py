@@ -64,8 +64,8 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
             if n_classes == 2:
                 df = df[:, 1:]
         else:
-            raise RuntimeError('classifier has not decision_function or '
-                               'predict_proba methods.')
+            raise RuntimeError('classifier has no decision_function or '
+                               'predict_proba method.')
 
         idx_pos_class = np.arange(df.shape[1])
 
