@@ -23,7 +23,7 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
 
     Parameters
     ----------
-    estimator : instance BaseEstimator
+    base_estimator : instance BaseEstimator
         The classifier whose output decision function needs to be calibrated
         to offer more accurate predict_proba outputs.
 
@@ -48,19 +48,19 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
 
     Platt, "Probabilistic Outputs for Support Vector Machines"
     """
-    def __init__(self, estimator=GaussianNB(), method='sigmoid', cv=3):
-        self.estimator = estimator
+    def __init__(self, base_estimator=GaussianNB(), method='sigmoid', cv=3):
+        self.base_estimator = base_estimator
         self.method = method
         self.cv = cv
 
-    def _preproc(self, estimator, X):
+    def _preproc(self, base_estimator, X):
         n_classes = len(self.classes_)
-        if hasattr(estimator, "decision_function"):
-            df = estimator.decision_function(X)
+        if hasattr(base_estimator, "decision_function"):
+            df = base_estimator.decision_function(X)
             if df.ndim == 1:
                 df = df[:, np.newaxis]
-        elif hasattr(estimator, "predict_proba"):
-            df = estimator.predict_proba(X)
+        elif hasattr(base_estimator, "predict_proba"):
+            df = base_estimator.predict_proba(X)
             if n_classes == 2:
                 df = df[:, 1:]
         else:
@@ -98,7 +98,7 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         self.models_ = []
 
         for train, test in cv:
-            this_estimator = clone(self.estimator)
+            this_estimator = clone(self.base_estimator)
             this_estimator.fit(X[train], y[train])
 
             df, idx_pos_class = self._preproc(this_estimator, X[test])
