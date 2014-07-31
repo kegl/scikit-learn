@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_blobs
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import brier_score, calibration_plot
-from sklearn.calibration import ProbabilityCalibrator
+from sklearn.calibration import CalibratedClassifier, CalibratedClassifierCV
 from sklearn.cross_validation import train_test_split
 
 make_blobs
@@ -42,20 +42,33 @@ y[n_samples // 2:] = 1
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.9,
                                                     random_state=42)
 
+X_ctrain, X_ctest, y_ctrain, y_ctest = train_test_split(X_train, y_train, 
+    test_size=0.9, random_state=62)
+
 cv = 4
 
 # Gaussian Naive-Bayes with no calibration
 clf = GaussianNB()
-clf.fit(X_train, y_train)
+clf.fit(X_ctrain, y_ctrain)
 prob_pos_clf = clf.predict_proba(X_test)[:, 1]
 
 # Gaussian Naive-Bayes with isotonic calibration
-clf_isotonic = ProbabilityCalibrator(clf, cv=cv, method='isotonic')
-clf_isotonic.fit(X_train, y_train)
+clf_isotonic = CalibratedClassifier(clf, method='isotonic')
+clf_isotonic.fit(X_ctest, y_ctest)
 prob_pos_isotonic = clf_isotonic.predict_proba(X_test)[:, 1]
 
+# Gaussian Naive-Bayes with no calibration
+#clf = GaussianNB()
+#clf.fit(X_train, y_train)
+#prob_pos_clf = clf.predict_proba(X_test)[:, 1]
+
+# Gaussian Naive-Bayes with isotonic calibration
+#clf_isotonic = CalibratedClassifierCV(clf, cv=cv, method='isotonic')
+#clf_isotonic.fit(X_train, y_train)
+#prob_pos_isotonic = clf_isotonic.predict_proba(X_test)[:, 1]
+
 # Gaussian Naive-Bayes with sigmoid calibration
-clf_sigmoid = ProbabilityCalibrator(clf, cv=cv, method='sigmoid')
+clf_sigmoid = CalibratedClassifierCV(clf, cv=cv, method='sigmoid')
 clf_sigmoid.fit(X_train, y_train)
 prob_pos_sigmoid = clf_sigmoid.predict_proba(X_test)[:, 1]
 

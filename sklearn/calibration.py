@@ -18,7 +18,151 @@ from .naive_bayes import GaussianNB
 from .cross_validation import _check_cv
 
 
-class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
+class CalibratedClassifier(BaseEstimator, ClassifierMixin):
+    """Probability calibration with Isotonic Regression or sigmoid. Assumes
+    that base_estimator has already been fit, and trains the calibration
+    on the input set of the fit function
+
+    Parameters
+    ----------
+    base_estimator : instance BaseEstimator
+        The classifier whose output decision function needs to be calibrated
+        to offer more accurate predict_proba outputs. No default value since 
+        it has to be an already fitted estimator.
+
+    method : 'sigmoid' | 'isotonic'
+        The method to use for calibration. Can be 'sigmoid' which
+        corresponds to Platt's method or 'isotonic' which is a
+        non-parameteric approach.
+
+    Notes
+    -----
+    References:
+    Obtaining calibrated probability estimates from decision trees
+    and naive Bayesian classifiers, B. Zadrozny & C. Elkan, ICML 2001
+
+    Transforming Classifier Scores into Accurate Multiclass
+    Probability Estimates, B. Zadrozny & C. Elkan, (KDD 2002)
+
+    Platt, "Probabilistic Outputs for Support Vector Machines"
+    """
+    def __init__(self, base_estimator, method='sigmoid'):
+        self.base_estimator = base_estimator
+        self.method = method
+  
+    def _preproc(self, X):
+        n_classes = len(self.classes_)
+        if hasattr(self.base_estimator, "decision_function"):
+            df = self.base_estimator.decision_function(X)
+            if df.ndim == 1:
+                df = df[:, np.newaxis]
+        elif hasattr(self.base_estimator, "predict_proba"):
+            df = self.base_estimator.predict_proba(X)
+            if n_classes == 2:
+                df = df[:, 1:]
+        else:
+            raise RuntimeError('classifier has no decision_function or '
+                               'predict_proba method.')
+
+        idx_pos_class = np.arange(df.shape[1])
+
+        return df, idx_pos_class
+
+    def fit(self, X, y):
+        """Calibrate the fitted model
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Training data.
+
+        y : array-like, shape (n_samples,)
+            Target values.
+
+        Returns
+        -------
+        self : object
+            returns an instance of self.
+        """
+        X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
+        y = column_or_1d(y)
+        X, y = indexable(X, y)
+
+        lb = LabelBinarizer()
+        Y = lb.fit_transform(y)
+        self.classes_ = lb.classes_
+        self.models_ = []
+
+        df, idx_pos_class = self._preproc(X)
+        self.calibrators_ = []
+            
+        for k, this_df in zip(idx_pos_class, df.T):
+            if self.method == 'isotonic':
+                calibrator = IsotonicRegression(y_min=0., y_max=1.,
+                   out_of_bounds='clip')
+            elif self.method == 'sigmoid':
+                calibrator = _SigmoidCalibration()
+            else:
+                raise ValueError('method should be "sigmoid" or '
+                   '"isotonic". Got %s.' % self.method)
+            calibrator.fit(this_df, Y[:, k])
+            self.calibrators_.append(calibrator)
+
+        return self
+
+    def predict_proba(self, X):
+        """Posterior probabilities of classification
+
+        This function returns posterior probabilities of classification
+        according to each class on an array of test vectors X.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The samples.
+
+        Returns
+        -------
+        C : array, shape (n_samples, n_classes)
+            The predicted probas. Can be exact zeros.
+        """
+        X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
+        n_classes = len(self.classes_)
+        proba = np.zeros((X.shape[0], n_classes))
+        
+        df, idx_pos_class = self._preproc(X)
+
+        for k, this_df, calibrator in \
+                zip(idx_pos_class, df.T, self.calibrators_):
+            if n_classes == 2:
+                k += 1
+            proba[:, k] = calibrator.predict(this_df)
+
+        # Normalize the probabilities
+        if n_classes == 2:
+            proba[:, 0] = 1. - proba[:, 1]
+        else:
+            proba /= np.sum(proba, axis=1)[:, np.newaxis]
+
+        return proba
+
+    def predict(self, X):
+        """Predict the target of new samples. Can be different from the
+        prediction of the uncalibrated classifier.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The samples.
+
+        Returns
+        -------
+        C : array, shape (n_samples,)
+            The predicted class.
+        """
+        return self.classes_[np.argmax(self.predict_proba(X), axis=1)]
+
+class CalibratedClassifierCV(BaseEstimator, ClassifierMixin):
     """Probability calibration with Isotonic Regression or sigmoid
 
     Parameters
@@ -53,24 +197,6 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         self.method = method
         self.cv = cv
 
-    def _preproc(self, base_estimator, X):
-        n_classes = len(self.classes_)
-        if hasattr(base_estimator, "decision_function"):
-            df = base_estimator.decision_function(X)
-            if df.ndim == 1:
-                df = df[:, np.newaxis]
-        elif hasattr(base_estimator, "predict_proba"):
-            df = base_estimator.predict_proba(X)
-            if n_classes == 2:
-                df = df[:, 1:]
-        else:
-            raise RuntimeError('classifier has no decision_function or '
-                               'predict_proba method.')
-
-        idx_pos_class = np.arange(df.shape[1])
-
-        return df, idx_pos_class
-
     def fit(self, X, y):
         """Fit the calibrated model
 
@@ -90,33 +216,20 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
         X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
         y = column_or_1d(y)
         X, y = indexable(X, y)
-
-        cv = _check_cv(self.cv, X, y, classifier=True)
         lb = LabelBinarizer()
         Y = lb.fit_transform(y)
-        self.classes_ = lb.classes_
-        self.models_ = []
+        self.n_classes_ = len(lb.classes_)
+
+        cv = _check_cv(self.cv, X, y, classifier=True)
+        self.calibrated_classifiers_ = []
 
         for train, test in cv:
             this_estimator = clone(self.base_estimator)
             this_estimator.fit(X[train], y[train])
-
-            df, idx_pos_class = self._preproc(this_estimator, X[test])
-            this_calibrators = []
-
-            for k, this_df in zip(idx_pos_class, df.T):
-                if self.method == 'isotonic':
-                    this_calibrator = IsotonicRegression(y_min=0., y_max=1.,
-                                                         out_of_bounds='clip')
-                    this_calibrator.fit(this_df, Y[test, k])
-                elif self.method == 'sigmoid':
-                    this_calibrator = _SigmoidCalibration()
-                    this_calibrator.fit(this_df, Y[test, k])
-                else:
-                    raise ValueError('method should be "sigmoid" or '
-                                     '"isotonic". Got %s.' % self.method)
-                this_calibrators.append(this_calibrator)
-            self.models_.append((this_estimator, this_calibrators))
+            calibrated_classifier = CalibratedClassifier(this_estimator, 
+                method=self.method)
+            calibrated_classifier.fit(X[test], y[test])
+            self.calibrated_classifiers_.append(calibrated_classifier)
 
         return self
 
@@ -137,34 +250,33 @@ class ProbabilityCalibrator(BaseEstimator, ClassifierMixin):
             The predicted probas.
         """
         X = check_array(X, accept_sparse=['csc', 'csr', 'coo'])
-        n_classes = len(self.classes_)
-        log_proba = np.zeros((X.shape[0], n_classes))
+        #log_proba = np.zeros((X.shape[0], self.n_classes_))
+        mean_proba = np.zeros((X.shape[0], self.n_classes_))
         tiny = np.finfo(np.float).tiny
 
-        for this_estimator, this_calibrators in self.models_:
-            df, idx_pos_class = self._preproc(this_estimator, X)
+        for calibrated_classifier in self.calibrated_classifiers_:
+            proba = calibrated_classifier.predict_proba(X)
+            proba = np.maximum(proba, tiny)  # to avoid log of 0 warning
+            mean_proba += proba
+            #log_proba += np.log(proba)
 
-            for k, this_df, this_calibrator in \
-                    zip(idx_pos_class, df.T, this_calibrators):
-                if n_classes == 2:
-                    k += 1
-                proba = this_calibrator.predict(this_df)
-                proba = np.maximum(proba, tiny)  # to avoid log of 0 warning
-                log_proba[:, k] += np.log(proba)
-
-        log_proba /= len(self.models_)
-        proba = np.exp(log_proba)
+        #log_proba /= len(self.calibrated_classifiers_)
+        mean_proba /= len(self.calibrated_classifiers_)
+        #proba = np.exp(log_proba)
+        # if the original probas added up to 1, the mean probas are also 
+        # normalized, we don't need to explicitly normalize
 
         # Normalize the probabilities
-        if n_classes == 2:
-            proba[:, 0] = 1. - proba[:, 1]
-        else:
-            proba /= np.sum(proba, axis=1)[:, np.newaxis]
+#        if n_classes == 2:
+#            proba[:, 0] = 1. - proba[:, 1]
+#        else:
+#            proba /= np.sum(proba, axis=1)[:, np.newaxis]
 
-        return proba
+        return mean_proba
 
     def predict(self, X):
-        """Predict the target of new samples.
+        """Predict the target of new samples. Can be different from the
+        prediction of the uncalibrated classifier.
 
         Parameters
         ----------
@@ -235,7 +347,6 @@ def sigmoid_calibration(df, y):
     AB0 = np.array([0., log((prior0 + 1.) / (prior1 + 1.))])
     AB_ = fmin_bfgs(objective, AB0, fprime=grad, disp=False)
     return AB_
-
 
 class _SigmoidCalibration(BaseEstimator, RegressorMixin):
     """Sigmoid regression model.
